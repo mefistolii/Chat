@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Глобальный Чат</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(90deg, #4f46e5, #7c3aed);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .chat-box {
+            height: 400px;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8fafc;
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 12px 16px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border-left: 4px solid #4f46e5;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .message-user {
+            font-weight: bold;
+            color: #4f46e5;
+            margin-bottom: 4px;
+        }
+        .message-text {
+            line-height: 1.5;
+            color: #334155;
+        }
+        .message-time {
+            font-size: 12px;
+            color: #64748b;
+            text-align: right;
+            margin-top: 5px;
+        }
+        .input-area {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e2e8f0;
+        }
+        .input-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+        button {
+            background: linear-gradient(90deg, #4f46e5, #7c3aed);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        .status {
+            text-align: center;
+            padding: 10px;
+            color: #64748b;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💬 Глобальный Чат</h1>
+            <p>Общайтесь со всем миром</p>
+        </div>
+        
+        <div class="chat-box" id="chat">
+            <div style="text-align:center; padding:40px; color:#64748b">
+                Загрузка сообщений...
+            </div>
+        </div>
+        
+        <div class="input-area">
+            <div class="input-row">
+                <input type="text" id="name" placeholder="Ваше имя" value="Гость">
+            </div>
+            <div class="input-row">
+                <input type="text" id="message" placeholder="Напишите сообщение..." autofocus>
+                <button onclick="sendMessage()">Отправить</button>
+            </div>
+            <div class="status">
+                ⚡ Сообщения обновляются в реальном времени
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "https://695ad7181d8041d5eeb5635e.mockapi.io/teast/massages";
+        let lastMessagesCount = 0;
+        
+        // Загрузить чат
+        async function loadChat() {
+            try {
+                const response = await fetch(API_URL);
+                const messages = await response.json();
+                
+                if (messages.length !== lastMessagesCount) {
+                    lastMessagesCount = messages.length;
+                    
+                    let html = '';
+                    
+                    if (messages.length === 0) {
+                        html = '<div style="text-align:center; padding:40px; color:#64748b">Нет сообщений. Будьте первым!</div>';
+                    } else {
+                        messages.slice(-50).forEach(msg => {
+                            const time = msg.time ? new Date(msg.time).toLocaleTimeString([], { 
+                                hour: '2-digit', 
+                                minute: '2-digit' 
+                            }) : 'только что';
+                            
+                            html += `
+                                <div class="message">
+                                    <div class="message-user">${escapeHtml(msg.user || msg.name || 'Гость')}</div>
+                                    <div class="message-text">${escapeHtml(msg.text || '')}</div>
+                                    <div class="message-time">${time}</div>
+                                </div>
+                            `;
+                        });
+                    }
+                    
+                    document.getElementById('chat').innerHTML = html;
+                    
+                    // Автопрокрутка вниз
+                    const chatBox = document.getElementById('chat');
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                }
+            } catch (error) {
+                document.getElementById('chat').innerHTML = 
+                    '<div style="text-align:center; padding:40px; color:#ef4444">Ошибка загрузки чата</div>';
+                console.error("Ошибка загрузки:", error);
+            }
+        }
+        
+        // Отправить сообщение
+        async function sendMessage() {
+            const user = document.getElementById('name').value.trim() || 'Гость';
+            const text = document.getElementById('message').value.trim();
+            
+            if (!text) {
+                alert('Введите текст сообщения');
+                return;
+            }
+            
+            try {
+                await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user: user,
+                        text: text,
+                        time: new Date().toISOString()
+                    })
+                });
+                
+                document.getElementById('message').value = '';
+                loadChat();
+            } catch (error) {
+                alert('Ошибка отправки сообщения');
+            }
+        }
+        
+        // Защита от XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', () => {
+            loadChat();
+            setInterval(loadChat, 1000);
+            
+            // Отправка по Enter
+            document.getElementById('message').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') sendMessage();
+            });
+        });
+    </script>
+</body>
+</html>
